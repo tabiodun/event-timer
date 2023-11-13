@@ -14,11 +14,12 @@
 <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
 <script src="https://unpkg.com/@babel/standalone@7.10.3/babel.min.js" crossorigin></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.3.0/NoSleep.min.js" crossorigin></script>
 
 <!-- Your Application Script -->
 <script type="text/babel" data-presets="react,stage-3">
     function Timer({ title, duration, onEnd, onPause, onResume }) {
-        const [timeLeft, setTimeLeft] = React.useState(duration);
+        const [timeLeft, setTimeLeft] = React.useState(duration * 60);
         const [isPaused, setIsPaused] = React.useState(false);
         let timerId;
 
@@ -49,10 +50,15 @@
             onResume();
         };
 
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+
         return (
             <div className="p-6 rounded flex flex-col items-center justify-center mt-20">
                 <h2 className="text-7xl mb-2">{title}</h2>
-                <p className="text-9xl mb-4">{timeLeft} seconds</p>
+                <p className="text-9xl mb-4">
+                    {minutes}:{seconds.toString().padStart(2, '0')}
+                </p>
                 <div>
                     <button
                         onClick={handlePause}
@@ -91,7 +97,17 @@
                 setActiveTimer(0);
                 onTimerEnd(true);
             }
-            document.getElementById("timer-sound").play();
+            const audio = document.getElementById("timer-sound");
+            let playCount = 0;
+            audio.play();
+
+            // Event listener to loop the sound
+            audio.onended = () => {
+                playCount++;
+                if (playCount < 4) {
+                    audio.play();
+                }
+            };
         };
 
         const handleTimerPause = () => {
@@ -135,6 +151,8 @@
     }
 
     function App() {
+        let noSleep = new NoSleep();
+
         const [timers, setTimers] = React.useState([]);
         const [newTitle, setNewTitle] = React.useState("");
         const [newDuration, setNewDuration] = React.useState("");
@@ -151,6 +169,7 @@
         };
 
         const startFullScreen = () => {
+            noSleep.enable();
             if (pendingTimers.length > 0) {
                 toggleFullScreen();
                 setStartTimers(true);
@@ -172,7 +191,7 @@
                     />
                     <input
                         type="number"
-                        placeholder="Duration (Seconds)"
+                        placeholder="Duration (mins)"
                         value={newDuration}
                         onChange={(e) => setNewDuration(e.target.value)}
                         className="p-2 border rounded mr-2"
@@ -198,7 +217,7 @@
                         {pendingTimers.map((timer, index) => (
                             <li key={index} className="text-3xl py-2">
                                 <span className="font-semibold">{timer.title}</span> -{" "}
-                                <span className="text-blue-600">{timer.duration}</span> seconds
+                                <span className="text-blue-600">{timer.duration}</span>
                             </li>
                         ))}
                     </ul>
@@ -208,7 +227,10 @@
                     startTimers={startTimers}
                     onTimerEnd={(clear = false) => {
                         setPendingTimers(pendingTimers.slice(1));
-                        if (clear) setTimers([]);
+                        if (clear) {
+                            noSleep.disable();
+                            setTimers([]);
+                        }
                     }}
                 />
             </div>
